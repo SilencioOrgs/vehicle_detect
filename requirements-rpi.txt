@@ -1,0 +1,12 @@
+# Raspberry Pi specific dependencies
+# Includes everything from requirements.txt plus RPi-only packages
+# ================================================================
+# Install: pip install -r requirements-rpi.txt
+# ================================================================
+
+-r requirements.txt
+RPi.GPIO
+
+# Install torch separately on Raspberry Pi because the correct wheel
+# can vary by Raspberry Pi OS image, Python version, and CPU architecture.
+# After installing torch, verify: python -c "import torch; print(torch.__version__)"

@@ -1,0 +1,23 @@
+# Vehicle Detection & Counter — Python Dependencies
+# ==================================================
+# Works on both Windows/Desktop and Raspberry Pi 4B (Bookworm OS)
+#
+# Desktop install:
+#   python -m pip install -r requirements.txt
+#
+# Raspberry Pi install:
+#   1. sudo apt update && sudo apt install -y python3-pip python3-venv \
+#      libopencv-dev python3-opencv libatlas-base-dev libhdf5-dev
+#   2. python3 -m venv --system-site-packages .venv
+#   3. source .venv/bin/activate
+#   4. python -m pip install --upgrade pip
+#   5. pip install -r requirements.txt
+#   6. Install torch separately using an RPi-compatible wheel:
+#      pip install torch   (or download a .whl for your OS/Python version)
+#   7. Verify: python -c "import torch; print(torch.__version__)"
+# ==================================================
+
+ultralytics>=8.3.0
+opencv-python>=4.8.0
+numpy>=1.23.0,<2.0.0
+lap>=0.5.12
