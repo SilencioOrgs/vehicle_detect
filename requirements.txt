@@ -2,19 +2,36 @@
 # ==================================================
 # Works on both Windows/Desktop and Raspberry Pi 4B (Bookworm OS)
 #
-# Desktop install:
-#   python -m pip install -r requirements.txt
+# ---- AGENTIC SETUP PROMPT (for AI Copilot on Raspberry Pi) ----
+# When on a Raspberry Pi, run these commands in order to set up
+# the project. Execute each step and verify before moving to next:
 #
-# Raspberry Pi install:
-#   1. sudo apt update && sudo apt install -y python3-pip python3-venv \
-#      libopencv-dev python3-opencv libatlas-base-dev libhdf5-dev
-#   2. python3 -m venv --system-site-packages .venv
-#   3. source .venv/bin/activate
-#   4. python -m pip install --upgrade pip
-#   5. pip install -r requirements.txt
-#   6. Install torch separately using an RPi-compatible wheel:
-#      pip install torch   (or download a .whl for your OS/Python version)
-#   7. Verify: python -c "import torch; print(torch.__version__)"
+#   Step 1: Install system dependencies
+#     sudo apt update && sudo apt install -y python3-pip python3-venv \
+#       libopencv-dev python3-opencv libatlas-base-dev libhdf5-dev \
+#       libharfbuzz-dev liblapack-dev gfortran
+#
+#   Step 2: Create virtual environment with system site-packages
+#     python3 -m venv --system-site-packages .venv
+#     source .venv/bin/activate
+#
+#   Step 3: Upgrade pip and install Python packages
+#     python -m pip install --upgrade pip setuptools wheel
+#     pip install -r requirements-rpi.txt
+#
+#   Step 4: Install PyTorch (RPi-compatible)
+#     pip install torch
+#     python -c "import torch; print(torch.__version__)"
+#
+#   Step 5: Verify everything works
+#     python -c "from ultralytics import YOLO; print('YOLO OK')"
+#     python -c "import cv2; print('OpenCV', cv2.__version__)"
+#
+#   Step 6: Run the detection
+#     python main.py
+#
+# ---- Desktop install (simple) ----
+#   python -m pip install -r requirements.txt
 # ==================================================
 
 ultralytics>=8.3.0

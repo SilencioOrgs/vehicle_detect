@@ -12,8 +12,22 @@ __pycache__/
 dist/
 build/
 
-# Output videos
+# Output videos & media
 output_*.mp4
+*.mp4
+*.avi
+*.png
+*.jpg
+*.jpeg
+
+# Test videos
+test videos/
+
+# YOLO model weights (downloaded automatically)
+*.pt
+
+# SQLite databases
+*.db
 
 # IDE
 .vscode/
