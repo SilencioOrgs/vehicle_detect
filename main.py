@@ -37,6 +37,16 @@ except ImportError:
     GPIO = None
     HAS_GPIO = False
 
+# Web App Integration
+from webapp import (
+    app as flask_app, 
+    log_detection_event, 
+    log_relay_signal,
+    log_relay_timeout,
+    set_app_state
+)
+from hotspot import enable_hotspot, disable_hotspot
+
 # ============================================================================
 # Configuration — tweak these for your setup
 # ============================================================================
@@ -95,6 +105,9 @@ relay_is_on = False            # Current relay state
 last_detection_time = 0.0      # Timestamp of last vehicle detection
 relay_timer_remaining = 0.0    # Countdown value for display
 detected_count_now = 0         # How many vehicles in current frame
+
+# Smart debouncing: tracks current detection event
+current_event_id = None        # Current detection event ID (for 5-second debounce)
 
 
 # ============================================================================
@@ -200,6 +213,8 @@ def check_relay_timeout():
             relay_is_on = False
             # Pulse OFF in a short thread
             threading.Thread(target=pulse_relay_off, daemon=True).start()
+            # Log the relay timeout for web app event completion
+            log_relay_timeout()
             return False, 0.0
 
         return True, remaining
@@ -276,18 +291,28 @@ def inference_worker(model):
                 x1, y1, x2, y2 = map(int, box)
                 current_boxes.append((x1, y1, x2, y2, float(confidence)))
 
-        # Relay timer logic:
-        #   Vehicle detected → relay ON + reset timer to 5s
-        #   New vehicle appears → timer resets back to 5s
-        #   No vehicles for 5s → relay OFF
+        # Smart Detection Event Logging (Web App Integration):
+        #   Vehicle detected → log event (handles 5-second debouncing internally)
+        #   Multiple vehicles within 5s → same event (no new row)
+        #   After 5s timeout → new event on next detection
+        global current_event_id
         if current_boxes:
-            if not relay_is_on:
-                # First detection → turn relay ON
-                activate_relay()
+            # Log detection (intelligently handles debouncing)
+            event_id = log_detection_event()
+            
+            # If this is a NEW event (not same as last one), signal relay
+            if event_id != current_event_id:
+                current_event_id = event_id
+                if not relay_is_on:
+                    # First detection in new event → turn relay ON
+                    activate_relay()
+                    # Log the relay signal for this event
+                    log_relay_signal(event_id)
             else:
-                # Vehicle still present or new vehicle → reset timer
-                reset_relay_timer()
-
+                # Same event (within 5s debounce window) → just reset timer
+                if relay_is_on:
+                    reset_relay_timer()
+        
         # Update detected count for UI display
         with state_lock:
             detected_count_now = len(current_boxes)
@@ -306,6 +331,22 @@ def main():
 
     # Initialize GPIO (no-op on Windows)
     gpio_ready = initialize_gpio()
+
+    # Start Flask Web App in background thread
+    print("[INFO] Starting Flask web app on port 5000...")
+    flask_thread = threading.Thread(
+        target=lambda: flask_app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False),
+        daemon=True
+    )
+    flask_thread.start()
+    time.sleep(2)  # Give Flask time to start
+    print("[INFO] Web app running at http://<your-ip>:5000")
+
+    # Enable WiFi hotspot (no-op on non-RPi)
+    enable_hotspot(ssid="VehicleDetector", password="detection123")
+    
+    # Update app state to indicate detection is ready
+    set_app_state(running=True, detection_enabled=False)
 
     # Load model
     print(f"[INFO] Loading YOLO model: {MODEL_PATH}")
@@ -470,6 +511,9 @@ def main():
 
     finally:
         running = False
+        
+        # Update app state
+        set_app_state(running=False, detection_enabled=False)
 
         # Wait for inference thread to finish
         if infer_thread is not None:
@@ -485,6 +529,11 @@ def main():
         # Cleanup GPIO
         if gpio_ready:
             cleanup_gpio()
+        
+        # Disable WiFi hotspot (no-op on non-RPi)
+        disable_hotspot()
+        
+        print("[INFO] Hotspot disabled and cleanup complete.")
 
     # Print summary
     print()
