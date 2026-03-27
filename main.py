@@ -12,6 +12,7 @@ import os
 import sys
 import threading
 import time
+from contextlib import nullcontext
 
 # Fix for OpenCV Qt/Wayland issues on RPi Bookworm
 if os.environ.get("XDG_SESSION_TYPE") == "wayland" and not os.environ.get("QT_QPA_PLATFORM"):
@@ -64,10 +65,21 @@ TARGET_FPS = 30                # Requested camera FPS
 IMG_SIZE = 512                 # YOLO input image size (512 catches motorcycles better)
 DETECT_CONF = 0.15             # Low confidence to catch motorcycles easier
 FRAME_SKIP = 1                 # Process every Nth frame (1 = every frame)
+MAX_DETECTIONS = 20            # Cap detections to reduce NMS overhead on Pi CPU
+SHOW_INFERENCE_STATS = True    # Overlay detector latency/FPS to help tuning on Pi
 
 # COCO class IDs for vehicles:
 #   1=bicycle, 2=car, 3=motorcycle, 5=bus, 6=train, 7=truck
 VEHICLE_CLASSES = [1, 2, 3, 5, 6, 7]
+
+PREDICT_KWARGS = {
+    'classes': VEHICLE_CLASSES,
+    'imgsz': IMG_SIZE,
+    'conf': DETECT_CONF,
+    'device': 'cpu',
+    'verbose': False,
+    'max_det': MAX_DETECTIONS,
+}
 
 # Generic label — all vehicles shown as "Vehicle" instead of individual types
 GENERIC_LABEL = 'Vehicle'
@@ -96,8 +108,11 @@ state_lock = threading.Lock()
 last_boxes = []                # List of (x1,y1,x2,y2,confidence)
 latest_frame = None
 latest_frame_idx = 0
+pending_inference = False
 running = True
 inference_error = None
+inference_ms = 0.0
+inference_fps = 0.0
 
 # Relay timer state (shared between inference thread and main loop)
 relay_lock = threading.Lock()
@@ -119,12 +134,25 @@ def configure_runtime():
     if hasattr(cv2, "setNumThreads"):
         cv2.setNumThreads(max(1, min(2, os.cpu_count() or 1)))
     if torch is not None:
+        if hasattr(torch.backends, "mkldnn"):
+            torch.backends.mkldnn.enabled = True
         thread_count = max(1, min(4, os.cpu_count() or 1))
         torch.set_num_threads(thread_count)
         try:
             torch.set_num_interop_threads(1)
         except RuntimeError:
             pass
+
+
+def warmup_model(model, frame_width, frame_height):
+    """Run a single dry inference to reduce first-detection latency."""
+    warmup_frame = np.zeros((frame_height, frame_width, 3), dtype=np.uint8)
+    inference_context = torch.inference_mode if torch is not None else nullcontext
+    start = time.perf_counter()
+    with inference_context():
+        model.predict(source=warmup_frame, **PREDICT_KWARGS)
+    elapsed_ms = (time.perf_counter() - start) * 1000.0
+    print(f"[INFO] Warmup complete in {elapsed_ms:.0f} ms")
 
 
 # ============================================================================
@@ -246,37 +274,30 @@ def inference_worker(model):
     shared detection results.
     """
     global last_boxes, running, inference_error, detected_count_now
-    processed_idx = -1
+    global pending_inference, inference_ms, inference_fps
 
     while running:
-        # Grab the latest frame
+        # Grab the latest raw frame. The main thread only copies frames when
+        # there is no outstanding inference work, which keeps Pi CPU usage down.
         with state_lock:
-            frame_idx = latest_frame_idx
-            frame_for_infer = (
-                latest_frame.copy()
-                if latest_frame is not None and frame_idx != processed_idx
-                else None
-            )
+            if pending_inference and latest_frame is not None:
+                frame_idx = latest_frame_idx
+                frame_for_infer = latest_frame
+                pending_inference = False
+            else:
+                frame_idx = latest_frame_idx
+                frame_for_infer = None
 
         if frame_for_infer is None:
             time.sleep(0.002)
             continue
 
-        processed_idx = frame_idx
-
-        # Skip frames for performance
-        if frame_idx % FRAME_SKIP != 0:
-            continue
-
         try:
-            results = model.predict(
-                source=frame_for_infer,
-                classes=VEHICLE_CLASSES,
-                imgsz=IMG_SIZE,
-                conf=DETECT_CONF,
-                device='cpu',
-                verbose=False,
-            )
+            infer_start = time.perf_counter()
+            inference_context = torch.inference_mode if torch is not None else nullcontext
+            with inference_context():
+                results = model.predict(source=frame_for_infer, **PREDICT_KWARGS)
+            elapsed_ms = (time.perf_counter() - infer_start) * 1000.0
         except Exception as exc:
             inference_error = str(exc)
             running = False
@@ -313,19 +334,22 @@ def inference_worker(model):
                 if relay_is_on:
                     reset_relay_timer()
         
-        # Update detected count for UI display
+        # Update detected count and smoothed inference stats for UI display.
         with state_lock:
             detected_count_now = len(current_boxes)
-
-        with state_lock:
             last_boxes = current_boxes
+            if inference_ms == 0.0:
+                inference_ms = elapsed_ms
+            else:
+                inference_ms = (inference_ms * 0.8) + (elapsed_ms * 0.2)
+            inference_fps = 1000.0 / inference_ms if inference_ms > 0 else 0.0
 
 
 # ============================================================================
 # Main — camera capture + display on main thread
 # ============================================================================
 def main():
-    global latest_frame, latest_frame_idx, running
+    global latest_frame, latest_frame_idx, pending_inference, running
 
     configure_runtime()
 
@@ -351,6 +375,11 @@ def main():
     # Load model
     print(f"[INFO] Loading YOLO model: {MODEL_PATH}")
     model = YOLO(MODEL_PATH)
+    try:
+        model.fuse()
+        print("[INFO] Model fused for faster CPU inference.")
+    except Exception as exc:
+        print(f"[WARN] Model fuse skipped: {exc}")
     print("[INFO] Model loaded successfully.")
 
     # Open webcam
@@ -379,6 +408,8 @@ def main():
     fps = int(cap.get(cv2.CAP_PROP_FPS)) or TARGET_FPS
 
     print(f"[INFO] Webcam: {actual_width}x{actual_height} @ {fps}fps")
+
+    warmup_model(model, actual_width, actual_height)
 
     # Calculate counting line position
     line_y = int(actual_height * LINE_POSITION_RATIO)
@@ -414,11 +445,18 @@ def main():
 
             frame_idx += 1
 
-            # Share frame with inference thread
+            # Queue only raw frames that will actually be inferred. This avoids
+            # feeding the model UI overlays and keeps copy work close to the
+            # real detector throughput instead of the camera FPS.
             with state_lock:
-                latest_frame = frame
-                latest_frame_idx = frame_idx
+                if frame_idx % FRAME_SKIP == 0 and not pending_inference:
+                    latest_frame = frame.copy()
+                    latest_frame_idx = frame_idx
+                    pending_inference = True
                 boxes_snapshot = list(last_boxes)
+                current_detected = detected_count_now
+                last_infer_ms = inference_ms
+                last_infer_fps = inference_fps
 
             # --- Draw counting line ---
             cv2.line(frame, (line_x_start, line_y), (line_x_end, line_y), (0, 0, 255), 3)
@@ -456,11 +494,15 @@ def main():
             label_y += 30
 
             # Detected right now
-            with state_lock:
-                current_detected = detected_count_now
             cv2.putText(frame, f"Detected Now: {current_detected}", (10, label_y),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
             label_y += 30
+
+            if SHOW_INFERENCE_STATS:
+                cv2.putText(frame, f"Infer: {last_infer_ms:.0f} ms ({last_infer_fps:.1f} fps)",
+                            (10, label_y),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 0), 2)
+                label_y += 30
 
             # Relay status
             if is_relay_on:

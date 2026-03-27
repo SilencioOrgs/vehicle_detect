@@ -9,6 +9,8 @@ import subprocess
 import sys
 import os
 
+HOTSPOT_CONN_NAME = "VehicleDetectorHotspot"
+
 
 def is_raspberry_pi():
     """Check if running on Raspberry Pi."""
@@ -37,12 +39,15 @@ def enable_hotspot(ssid="VehicleDetector", password="detection123"):
         return False
     
     try:
-        # Create hotspot connection
+        # Create or reuse hotspot connection. NetworkManager 1.42 requires
+        # the Wi-Fi band when a channel is specified.
         cmd = [
             'nmcli', 'device', 'wifi', 'hotspot',
             'ifname', 'wlan0',
             'ssid', ssid,
             'password', password,
+            'con-name', HOTSPOT_CONN_NAME,
+            'band', 'bg',
             'channel', '6'
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -70,15 +75,20 @@ def disable_hotspot():
         return True
     
     try:
-        # Kill hotspot
-        cmd = ['nmcli', 'device', 'wifi', 'hotspot', 'off']
+        # Bring down the hotspot connection if it exists. `nmcli device wifi hotspot off`
+        # is not supported on this NetworkManager version.
+        cmd = ['nmcli', 'connection', 'down', HOTSPOT_CONN_NAME]
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode == 0:
             print("[INFO] Hotspot disabled")
             return True
         else:
-            print(f"[WARN] Hotspot disable failed: {result.stderr}")
+            message = (result.stderr or result.stdout).strip()
+            if "unknown connection" in message.lower() or "not an active connection" in message.lower():
+                print("[INFO] Hotspot already inactive.")
+                return True
+            print(f"[WARN] Hotspot disable failed: {message}")
             return False
             
     except Exception as e:
@@ -96,21 +106,16 @@ def get_hotspot_status():
         return {'active': False, 'ssid': None}
     
     try:
-        # Check if there's an active hotspot
         result = subprocess.run(
-            ['nmcli', 'device', 'show'],
-            capture_output=True, text=True
+            ['nmcli', '-t', '-f', 'NAME,TYPE,DEVICE', 'connection', 'show', '--active'],
+            capture_output=True, text=True, check=False
         )
-        
-        if 'Hotspot' in result.stdout:
-            # Try to extract SSID
-            for line in result.stdout.split('\n'):
-                if 'SSID' in line:
-                    ssid = line.split(':', 1)[1].strip()
-                    return {'active': True, 'ssid': ssid}
-            
-            return {'active': True, 'ssid': 'Unknown'}
-        
+
+        for line in result.stdout.splitlines():
+            parts = line.split(':')
+            if len(parts) >= 3 and parts[0] == HOTSPOT_CONN_NAME and parts[1] == 'wifi':
+                return {'active': True, 'ssid': HOTSPOT_CONN_NAME}
+
         return {'active': False, 'ssid': None}
         
     except Exception as e:

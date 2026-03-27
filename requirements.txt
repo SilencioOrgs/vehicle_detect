@@ -15,12 +15,13 @@
 #     python3 -m venv --system-site-packages .venv
 #     source .venv/bin/activate
 #
-#   Step 3: Upgrade pip and install Python packages
+#   Step 3: Upgrade pip and install Raspberry Pi support packages
 #     python -m pip install --upgrade pip setuptools wheel
 #     pip install -r requirements-rpi.txt
 #
-#   Step 4: Install PyTorch (RPi-compatible)
-#     pip install torch
+#   Step 4: Install CPU-only PyTorch and Ultralytics
+#     pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#     pip install --no-deps ultralytics
 #     python -c "import torch; print(torch.__version__)"
 #
 #   Step 5: Verify everything works
@@ -29,6 +30,14 @@
 #
 #   Step 6: Run the detection
 #     python main.py
+#
+#   Notes:
+#     - Raspberry Pi uses the apt-provided OpenCV build (`python3-opencv`)
+#       through the virtualenv's `--system-site-packages` setting.
+#     - Install torch before ultralytics on Raspberry Pi so pip does not try
+#       to resolve GPU/CUDA torch dependencies for a CPU-only board.
+#     - `requirements-rpi.txt` carries the non-torch Ultralytics runtime deps,
+#       so `ultralytics` itself is installed with `--no-deps`.
 #
 # ---- Desktop install (simple) ----
 #   python -m pip install -r requirements.txt

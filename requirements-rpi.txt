@@ -1,12 +1,24 @@
-# Raspberry Pi specific dependencies
-# Includes everything from requirements.txt plus RPi-only packages
+# Raspberry Pi specific support packages
 # ================================================================
-# Install: pip install -r requirements-rpi.txt
+# Install after creating the virtualenv:
+#   pip install -r requirements-rpi.txt
+#
+# This file intentionally excludes:
+#   - torch / torchvision: install from the PyTorch CPU index first
+#   - ultralytics: install after torch with --no-deps
+#   - opencv-python: use apt's python3-opencv via --system-site-packages
 # ================================================================
 
--r requirements.txt
+numpy>=1.23.0,<2.0.0
+lap>=0.5.12
+flask>=2.3.0
+flask-cors>=4.0.0
+pillow>=7.1.2
+pyyaml>=5.3.1
+requests>=2.23.0
+scipy>=1.4.1
+psutil>=5.8.0
+matplotlib>=3.3.0
+polars>=0.20.0
+ultralytics-thop>=2.0.18
 RPi.GPIO
-
-# Install torch separately on Raspberry Pi because the correct wheel
-# can vary by Raspberry Pi OS image, Python version, and CPU architecture.
-# After installing torch, verify: python -c "import torch; print(torch.__version__)"

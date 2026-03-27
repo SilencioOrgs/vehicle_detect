@@ -5,538 +5,706 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vehicle Detection Dashboard</title>
     <style>
+        :root {
+            --bg: #ffffff;
+            --surface: #f5f5f5;
+            --surface-strong: #ebebeb;
+            --border: #111111;
+            --text: #000000;
+            --muted: #4a4a4a;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            --radius: 20px;
+        }
+
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
         }
-        
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background:
+                linear-gradient(180deg, #ffffff 0%, #efefef 100%);
+            color: var(--text);
             min-height: 100vh;
-            padding: 20px;
+            padding: 16px;
         }
-        
-        .container {
-            max-width: 1000px;
+
+        .shell {
+            max-width: 1080px;
             margin: 0 auto;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .app {
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 28px;
             overflow: hidden;
+            box-shadow: var(--shadow);
         }
-        
-        header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
+
+        .hero {
+            padding: 22px 18px 18px;
+            background:
+                linear-gradient(180deg, #ffffff 0%, #e8e8e8 100%);
+            border-bottom: 2px solid var(--border);
         }
-        
+
+        .eyebrow {
+            display: inline-block;
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            border: 1px solid var(--border);
+            padding: 6px 8px;
+            margin-bottom: 12px;
+            background: #fff;
+        }
+
         h1 {
             font-size: 28px;
+            line-height: 1;
+            letter-spacing: -0.04em;
             margin-bottom: 10px;
         }
-        
-        .status-bar {
-            display: flex;
-            justify-content: space-around;
-            padding: 20px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
+
+        .hero p {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.5;
+            max-width: 42rem;
         }
-        
-        .status-item {
-            text-align: center;
+
+        .section {
+            padding: 18px;
+            border-bottom: 1px solid #d6d6d6;
         }
-        
-        .status-label {
-            font-size: 12px;
-            color: #666;
+
+        .section:last-child {
+            border-bottom: 0;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .stat {
+            background: var(--surface);
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+        }
+
+        .stat-label {
+            font-size: 11px;
             text-transform: uppercase;
-            margin-bottom: 5px;
+            letter-spacing: 0.1em;
+            color: var(--muted);
+            margin-bottom: 8px;
         }
-        
-        .status-value {
+
+        .stat-value {
             font-size: 24px;
-            font-weight: bold;
-            color: #667eea;
+            font-weight: 700;
+            line-height: 1.1;
+            word-break: break-word;
         }
-        
-        .status-value.active {
-            color: #28a745;
-        }
-        
-        .status-value.inactive {
-            color: #dc3545;
-        }
-        
+
         .controls {
-            padding: 30px;
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            border-bottom: 1px solid #dee2e6;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
         }
-        
+
         button {
-            padding: 12px 30px;
-            font-size: 16px;
-            border: none;
-            border-radius: 5px;
+            appearance: none;
+            border: 1.5px solid var(--border);
+            background: #fff;
+            color: var(--text);
+            padding: 14px 12px;
+            min-height: 52px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
             cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
         }
-        
-        .btn-start {
-            background: #28a745;
-            color: white;
+
+        button.primary {
+            background: #000;
+            color: #fff;
         }
-        
-        .btn-start:hover {
-            background: #218838;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+
+        button.secondary {
+            background: var(--surface);
         }
-        
-        .btn-start:disabled {
-            background: #ccc;
+
+        button:disabled {
+            opacity: 0.45;
             cursor: not-allowed;
-            transform: none;
         }
-        
-        .btn-stop {
-            background: #dc3545;
-            color: white;
+
+        .toolbar {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px;
         }
-        
-        .btn-stop:hover {
-            background: #c82333;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+
+        .panel-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 12px;
+            margin-bottom: 14px;
         }
-        
-        .btn-stop:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
+
+        .panel-heading h2 {
+            font-size: 18px;
+            line-height: 1.1;
         }
-        
-        .btn-clear {
-            background: #6c757d;
-            color: white;
+
+        .panel-note {
+            font-size: 12px;
+            color: var(--muted);
         }
-        
-        .btn-clear:hover {
-            background: #5a6268;
-            transform: translateY(-2px);
+
+        .session-card,
+        .event-card,
+        .table-shell {
+            border: 1.5px solid var(--border);
+            border-radius: 20px;
+            background: #fff;
         }
-        
-        .content {
-            padding: 30px;
+
+        .session-card {
+            padding: 14px;
+            background: var(--surface);
         }
-        
-        h2 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 20px;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
+
+        .session-grid,
+        .event-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
         }
-        
+
+        .kv {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            border-bottom: 1px solid #d6d6d6;
+            padding-bottom: 8px;
+        }
+
+        .kv:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .kv-label {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .kv-value {
+            font-weight: 700;
+            font-size: 13px;
+            text-align: right;
+            word-break: break-word;
+        }
+
+        .event-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .event-card {
+            padding: 14px;
+        }
+
+        .event-card-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .event-id {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .status-pill {
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            background: #fff;
+        }
+
+        .table-shell {
+            display: none;
+            overflow-x: auto;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            min-width: 880px;
         }
-        
-        thead {
-            background: #f8f9fa;
-        }
-        
-        th {
-            padding: 15px;
-            text-align: left;
-            font-weight: 600;
-            color: #333;
-            border-bottom: 2px solid #dee2e6;
-        }
-        
+
+        th,
         td {
-            padding: 15px;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        tbody tr:hover {
-            background: #f8f9fa;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-        }
-        
-        .empty-state-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .status-pending {
-            background: #ffeaa7;
-            color: #d63031;
-        }
-        
-        .status-active {
-            background: #74b9ff;
-            color: #0984e3;
-        }
-        
-        .status-completed {
-            background: #55efc4;
-            color: #00b894;
-        }
-        
-        .time-format {
-            font-family: 'Courier New', monospace;
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #d6d6d6;
             font-size: 13px;
-            color: #555;
+            vertical-align: top;
         }
-        
-        .duration {
-            font-weight: bold;
-            color: #667eea;
-        }
-        
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .footer {
-            background: #f8f9fa;
-            padding: 15px 30px;
-            text-align: center;
-            color: #999;
+
+        thead th {
+            background: #000;
+            color: #fff;
             font-size: 12px;
-            border-top: 1px solid #dee2e6;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            position: sticky;
+            top: 0;
         }
-        
-        .current-event {
-            background: #e7f3ff;
-            padding: 15px;
-            border-left: 4px solid #0084ff;
-            margin-bottom: 20px;
-            border-radius: 4px;
+
+        .mono {
+            font-family: "Courier New", Courier, monospace;
+            font-size: 12px;
         }
-        
-        .current-event-title {
-            font-weight: 600;
-            color: #0084ff;
-            margin-bottom: 8px;
+
+        .empty-state {
+            border: 1.5px dashed var(--border);
+            border-radius: 20px;
+            padding: 22px 16px;
+            text-align: center;
+            background: #fafafa;
         }
-        
-        .current-event-info {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            font-size: 14px;
+
+        .empty-state p {
+            color: var(--muted);
+            line-height: 1.5;
         }
-        
-        .info-item {
-            display: flex;
-            justify-content: space-between;
+
+        .feedback {
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--muted);
+            min-height: 18px;
         }
-        
-        .info-label {
-            color: #666;
-            font-weight: 500;
+
+        .footer {
+            padding: 16px 18px 22px;
+            background: #fafafa;
+            border-top: 1px solid #d6d6d6;
+            font-size: 12px;
+            color: var(--muted);
         }
-        
-        .info-value {
-            color: #333;
-            font-weight: 600;
+
+        @media (min-width: 720px) {
+            body {
+                padding: 28px;
+            }
+
+            .hero {
+                padding: 28px 28px 24px;
+            }
+
+            h1 {
+                font-size: 40px;
+            }
+
+            .section {
+                padding: 24px 28px;
+            }
+
+            .stats {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .controls {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .toolbar {
+                grid-template-columns: repeat(2, max-content);
+                justify-content: end;
+            }
+
+            .session-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media print {
+            body {
+                padding: 0;
+                background: #fff;
+            }
+
+            .app {
+                border: 0;
+                box-shadow: none;
+            }
+
+            .controls,
+            .toolbar,
+            .feedback,
+            .footer {
+                display: none;
+            }
+
+            .table-shell {
+                display: block !important;
+                overflow: visible;
+                border: 1px solid #000;
+                border-radius: 0;
+            }
+
+            .event-list {
+                display: none !important;
+            }
+
+            table {
+                min-width: 0;
+            }
+
+            thead th {
+                position: static;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🚗 Vehicle Detection Dashboard</h1>
-            <p>Real-time Vehicle Detection with Smart Relay Control</p>
-        </header>
-        
-        <div class="status-bar">
-            <div class="status-item">
-                <div class="status-label">Status</div>
-                <div class="status-value" id="status">Stopped</div>
-            </div>
-            <div class="status-item">
-                <div class="status-label">Total Events</div>
-                <div class="status-value" id="totalEvents">0</div>
-            </div>
-            <div class="status-item">
-                <div class="status-label">Last Detection</div>
-                <div class="status-value time-format" id="lastDetection">--:--:--</div>
-            </div>
-        </div>
-        
-        <div class="controls">
-            <button class="btn-start" id="btnStart">▶️ Start Detection</button>
-            <button class="btn-stop" id="btnStop" disabled>⏹️ Stop Detection</button>
-            <button class="btn-clear" id="btnClear">🗑️ Clear Events</button>
-        </div>
-        
-        <div class="content">
-            <h2>Current Detection Session</h2>
-            <div id="currentEvent" class="empty-state">
-                <div class="empty-state-icon">⏳</div>
-                <p>Waiting for vehicle detection...</p>
-            </div>
-            
-            <h2>Detection History</h2>
-            <div id="eventsContainer">
-                <div class="empty-state">
-                    <div class="empty-state-icon">📊</div>
-                    <p>No events recorded yet. Click "Start Detection" to begin.</p>
+    <div class="shell">
+        <main class="app">
+            <section class="hero">
+                <div class="eyebrow">Vehicle Detection</div>
+                <h1>Mobile Dashboard</h1>
+                <p>View live session status, review event history, copy the table into Excel, or print and save the report as PDF.</p>
+            </section>
+
+            <section class="section">
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-label">System Status</div>
+                        <div class="stat-value" id="status">Stopped</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Total Events</div>
+                        <div class="stat-value" id="totalEvents">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Last Detection</div>
+                        <div class="stat-value mono" id="lastDetection">--</div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        
-        <div class="footer">
-            <p>Auto-refreshing every 2 seconds | Last updated: <span id="lastUpdate">--:--:--</span></p>
-        </div>
+            </section>
+
+            <section class="section">
+                <div class="controls">
+                    <button class="primary" id="btnStart">Start Detection</button>
+                    <button class="secondary" id="btnStop" disabled>Stop Detection</button>
+                    <button class="secondary" id="btnClear">Clear Events</button>
+                </div>
+                <div class="toolbar">
+                    <button class="secondary" id="btnCopy">Copy Table</button>
+                    <button class="secondary" id="btnPdf">Print / Save PDF</button>
+                </div>
+                <div class="feedback" id="feedback"></div>
+            </section>
+
+            <section class="section">
+                <div class="panel-heading">
+                    <div>
+                        <h2>Current Session</h2>
+                        <div class="panel-note">Live detection event status</div>
+                    </div>
+                </div>
+                <div id="currentEvent"></div>
+            </section>
+
+            <section class="section">
+                <div class="panel-heading">
+                    <div>
+                        <h2>Detection History</h2>
+                        <div class="panel-note">Cards on mobile, full table for copy and print</div>
+                    </div>
+                </div>
+
+                <div id="eventCards" class="event-list"></div>
+
+                <div class="table-shell" id="tableShell">
+                    <table id="eventsTable">
+                        <thead>
+                            <tr>
+                                <th>Event ID</th>
+                                <th>Detection Time</th>
+                                <th>Relay Signal Time</th>
+                                <th>Relay Off Time</th>
+                                <th>Duration</th>
+                                <th>Vehicles</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="eventsTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <footer class="footer">
+                Vehicle Detection Dashboard
+            </footer>
+        </main>
     </div>
-    
+
     <script>
-        const API_ENDPOINT = '/api';
-        const REFRESH_INTERVAL = 2000; // 2 seconds
-        
-        let refreshInterval = null;
-        let isRunning = false;
-        
-        // ====================================================================
-        // DOM Elements
-        // ====================================================================
-        const btnStart = document.getElementById('btnStart');
-        const btnStop = document.getElementById('btnStop');
-        const btnClear = document.getElementById('btnClear');
+        let eventsData = [];
+        let currentEventData = null;
+
         const statusEl = document.getElementById('status');
         const totalEventsEl = document.getElementById('totalEvents');
         const lastDetectionEl = document.getElementById('lastDetection');
-        const lastUpdateEl = document.getElementById('lastUpdate');
-        const eventsContainerEl = document.getElementById('eventsContainer');
         const currentEventEl = document.getElementById('currentEvent');
-        
-        // ====================================================================
-        // Event Handlers
-        // ====================================================================
-        btnStart.addEventListener('click', startDetection);
-        btnStop.addEventListener('click', stopDetection);
-        btnClear.addEventListener('click', clearEvents);
-        
-        async function startDetection() {
-            try {
-                const response = await fetch(`${API_ENDPOINT}/start`, {method: 'POST'});
-                if (response.ok) {
-                    isRunning = true;
-                    updateUI();
-                    startAutoRefresh();
-                }
-            } catch (error) {
-                console.error('Error starting detection:', error);
-                alert('Failed to start detection');
+        const eventCardsEl = document.getElementById('eventCards');
+        const eventsTableBodyEl = document.getElementById('eventsTableBody');
+        const feedbackEl = document.getElementById('feedback');
+
+        const btnStart = document.getElementById('btnStart');
+        const btnStop = document.getElementById('btnStop');
+        const btnClear = document.getElementById('btnClear');
+        const btnCopy = document.getElementById('btnCopy');
+        const btnPdf = document.getElementById('btnPdf');
+
+        function showFeedback(message) {
+            feedbackEl.textContent = message;
+            window.clearTimeout(showFeedback.timer);
+            showFeedback.timer = window.setTimeout(() => {
+                feedbackEl.textContent = '';
+            }, 2500);
+        }
+
+        function formatDateTime(timestamp) {
+            if (!timestamp) return '--';
+            const date = new Date(timestamp);
+            return date.toLocaleString();
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function renderCurrentEvent() {
+            if (!currentEventData) {
+                currentEventEl.innerHTML = `
+                    <div class="empty-state">
+                        <p>Waiting for a detection event.</p>
+                    </div>
+                `;
+                return;
             }
-        }
-        
-        async function stopDetection() {
-            try {
-                const response = await fetch(`${API_ENDPOINT}/stop`, {method: 'POST'});
-                if (response.ok) {
-                    isRunning = false;
-                    updateUI();
-                    stopAutoRefresh();
-                    await refreshEvents();  // Final refresh
-                }
-            } catch (error) {
-                console.error('Error stopping detection:', error);
-                alert('Failed to stop detection');
-            }
-        }
-        
-        async function clearEvents() {
-            if (!confirm('Are you sure? This will clear all recorded events.')) return;
-            
-            try {
-                await fetch(`${API_ENDPOINT}/clear-events`, {method: 'POST'});
-                await refreshEvents();
-            } catch (error) {
-                console.error('Error clearing events:', error);
-                alert('Failed to clear events');
-            }
-        }
-        
-        function updateUI() {
-            btnStart.disabled = isRunning;
-            btnStop.disabled = !isRunning;
-            statusEl.textContent = isRunning ? 'Running' : 'Stopped';
-            statusEl.className = isRunning ? 'status-value active' : 'status-value inactive';
-        }
-        
-        async function refreshEvents() {
-            try {
-                const response = await fetch(`${API_ENDPOINT}/events`);
-                const data = await response.json();
-                
-                // Update event count
-                totalEventsEl.textContent = data.total_events;
-                
-                // Update last detection time
-                if (data.events.length > 0) {
-                    const lastEvent = data.events[data.events.length - 1];
-                    lastDetectionEl.textContent = formatTime(lastEvent.detection_time);
-                } else if (data.current_event) {
-                    lastDetectionEl.textContent = formatTime(data.current_event.detection_time);
-                }
-                
-                // Update current event
-                if (data.current_event) {
-                    currentEventEl.innerHTML = renderCurrentEvent(data.current_event);
-                } else {
-                    currentEventEl.innerHTML = `
-                        <div class="empty-state-icon">⏳</div>
-                        <p>No active detection session.</p>
-                    `;
-                }
-                
-                // Update events table
-                if (data.events.length > 0) {
-                    eventsContainerEl.innerHTML = `
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Event ID</th>
-                                    <th>Detection Time</th>
-                                    <th>Relay Signal Time</th>
-                                    <th>Relay Off Time</th>
-                                    <th>Duration (s)</th>
-                                    <th>Vehicles</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${data.events.map(event => `
-                                    <tr>
-                                        <td>${event.event_id}</td>
-                                        <td class="time-format">${formatTime(event.detection_time)}</td>
-                                        <td class="time-format">${event.relay_signal_time ? formatTime(event.relay_signal_time) : '--'}</td>
-                                        <td class="time-format">${event.relay_off_time ? formatTime(event.relay_off_time) : '--'}</td>
-                                        <td class="duration">${event.duration_seconds !== null ? event.duration_seconds.toFixed(2) : '--'}</td>
-                                        <td>${event.vehicle_count}</td>
-                                        <td>
-                                            <span class="status-badge status-${event.status}">
-                                                ${event.status}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                } else {
-                    eventsContainerEl.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📊</div>
-                            <p>No events recorded yet.</p>
-                        </div>
-                    `;
-                }
-                
-                // Update timestamp
-                lastUpdateEl.textContent = formatTime(new Date().toISOString());
-                
-            } catch (error) {
-                console.error('Error refreshing events:', error);
-            }
-        }
-        
-        function renderCurrentEvent(event) {
-            return `
-                <div class="current-event">
-                    <div class="current-event-title">Event #${event.event_id} - ${event.status.toUpperCase()}</div>
-                    <div class="current-event-info">
-                        <div class="info-item">
-                            <span class="info-label">Detection Time:</span>
-                            <span class="info-value">${formatTime(event.detection_time)}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Relay Signal Time:</span>
-                            <span class="info-value">${event.relay_signal_time ? formatTime(event.relay_signal_time) : 'Pending'}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Vehicles Detected:</span>
-                            <span class="info-value">${event.vehicle_count}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Duration:</span>
-                            <span class="info-value">${event.duration_seconds ? event.duration_seconds.toFixed(2) + 's' : 'In progress...'}</span>
-                        </div>
+
+            currentEventEl.innerHTML = `
+                <div class="session-card">
+                    <div class="event-card-header">
+                        <div class="event-id">Event ${currentEventData.event_id}</div>
+                        <div class="status-pill">${escapeHtml(currentEventData.status)}</div>
+                    </div>
+                    <div class="session-grid">
+                        <div class="kv"><span class="kv-label">Detection Time</span><span class="kv-value">${escapeHtml(formatDateTime(currentEventData.detection_time))}</span></div>
+                        <div class="kv"><span class="kv-label">Relay Signal</span><span class="kv-value">${escapeHtml(formatDateTime(currentEventData.relay_signal_time))}</span></div>
+                        <div class="kv"><span class="kv-label">Relay Off</span><span class="kv-value">${escapeHtml(formatDateTime(currentEventData.relay_off_time))}</span></div>
+                        <div class="kv"><span class="kv-label">Vehicles</span><span class="kv-value">${escapeHtml(currentEventData.vehicle_count ?? 0)}</span></div>
+                        <div class="kv"><span class="kv-label">Duration</span><span class="kv-value">${escapeHtml(currentEventData.duration_seconds ?? '--')}</span></div>
                     </div>
                 </div>
             `;
         }
-        
-        function formatTime(isoString) {
-            if (!isoString) return '--:--:--';
-            const date = new Date(isoString);
-            return date.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
+
+        function renderEventCards() {
+            if (!eventsData.length) {
+                eventCardsEl.innerHTML = `
+                    <div class="empty-state">
+                        <p>No completed events yet.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            eventCardsEl.innerHTML = eventsData.map(event => `
+                <article class="event-card">
+                    <div class="event-card-header">
+                        <div class="event-id">Event ${escapeHtml(event.event_id)}</div>
+                        <div class="status-pill">${escapeHtml(event.status)}</div>
+                    </div>
+                    <div class="event-grid">
+                        <div class="kv"><span class="kv-label">Detection Time</span><span class="kv-value">${escapeHtml(formatDateTime(event.detection_time))}</span></div>
+                        <div class="kv"><span class="kv-label">Relay Signal</span><span class="kv-value">${escapeHtml(formatDateTime(event.relay_signal_time))}</span></div>
+                        <div class="kv"><span class="kv-label">Relay Off</span><span class="kv-value">${escapeHtml(formatDateTime(event.relay_off_time))}</span></div>
+                        <div class="kv"><span class="kv-label">Duration</span><span class="kv-value">${escapeHtml(event.duration_seconds ?? '--')}</span></div>
+                        <div class="kv"><span class="kv-label">Vehicles</span><span class="kv-value">${escapeHtml(event.vehicle_count ?? 0)}</span></div>
+                    </div>
+                </article>
+            `).join('');
         }
-        
-        function startAutoRefresh() {
-            if (refreshInterval) return;
-            refreshInterval = setInterval(refreshEvents, REFRESH_INTERVAL);
-            refreshEvents();  // Immediate refresh
+
+        function renderTable() {
+            if (!eventsData.length) {
+                eventsTableBodyEl.innerHTML = `
+                    <tr>
+                        <td colspan="7">No completed events yet.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            eventsTableBodyEl.innerHTML = eventsData.map(event => `
+                <tr>
+                    <td>${escapeHtml(event.event_id)}</td>
+                    <td class="mono">${escapeHtml(formatDateTime(event.detection_time))}</td>
+                    <td class="mono">${escapeHtml(formatDateTime(event.relay_signal_time))}</td>
+                    <td class="mono">${escapeHtml(formatDateTime(event.relay_off_time))}</td>
+                    <td>${escapeHtml(event.duration_seconds ?? '--')}</td>
+                    <td>${escapeHtml(event.vehicle_count ?? 0)}</td>
+                    <td>${escapeHtml(event.status)}</td>
+                </tr>
+            `).join('');
         }
-        
-        function stopAutoRefresh() {
-            if (refreshInterval) {
-                clearInterval(refreshInterval);
-                refreshInterval = null;
+
+        function buildTsv() {
+            const headers = [
+                'Event ID',
+                'Detection Time',
+                'Relay Signal Time',
+                'Relay Off Time',
+                'Duration',
+                'Vehicles',
+                'Status'
+            ];
+
+            const rows = eventsData.map(event => [
+                event.event_id ?? '',
+                formatDateTime(event.detection_time),
+                formatDateTime(event.relay_signal_time),
+                formatDateTime(event.relay_off_time),
+                event.duration_seconds ?? '',
+                event.vehicle_count ?? 0,
+                event.status ?? ''
+            ]);
+
+            return [headers, ...rows]
+                .map(row => row.join('\t'))
+                .join('\n');
+        }
+
+        async function copyTable() {
+            const tsv = buildTsv();
+            try {
+                await navigator.clipboard.writeText(tsv);
+                showFeedback('Table copied. You can paste it into Excel.');
+            } catch (error) {
+                const textArea = document.createElement('textarea');
+                textArea.value = tsv;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showFeedback('Table copied.');
             }
         }
-        
-        // ====================================================================
-        // Initial Setup
-        // ====================================================================
-        window.addEventListener('load', () => {
-            updateUI();
-            refreshEvents();
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+
+                statusEl.textContent = data.running ? 'Running' : 'Stopped';
+                btnStart.disabled = !!data.running;
+                btnStop.disabled = !data.running;
+            } catch (error) {
+                statusEl.textContent = 'Offline';
+            }
+        }
+
+        async function fetchEvents() {
+            try {
+                const response = await fetch('/api/events');
+                const data = await response.json();
+
+                eventsData = data.events || [];
+                currentEventData = data.current_event || null;
+
+                totalEventsEl.textContent = data.total_events || 0;
+
+                const latest = currentEventData || eventsData[eventsData.length - 1];
+                lastDetectionEl.textContent = latest ? formatDateTime(latest.detection_time) : '--';
+
+                renderCurrentEvent();
+                renderEventCards();
+                renderTable();
+            } catch (error) {
+                showFeedback('Unable to load events.');
+            }
+        }
+
+        async function loadDashboard() {
+            await Promise.all([fetchStatus(), fetchEvents()]);
+        }
+
+        btnStart.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/start', { method: 'POST' });
+                const data = await response.json();
+                showFeedback(data.message || 'Detection started.');
+                await loadDashboard();
+            } catch (error) {
+                showFeedback('Unable to start detection.');
+            }
         });
+
+        btnStop.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/stop', { method: 'POST' });
+                const data = await response.json();
+                showFeedback(data.message || 'Detection stopped.');
+                await loadDashboard();
+            } catch (error) {
+                showFeedback('Unable to stop detection.');
+            }
+        });
+
+        btnClear.addEventListener('click', async () => {
+            try {
+                await fetch('/api/clear-events', { method: 'POST' });
+                showFeedback('Events cleared.');
+                await loadDashboard();
+            } catch (error) {
+                showFeedback('Unable to clear events.');
+            }
+        });
+
+        btnCopy.addEventListener('click', copyTable);
+        btnPdf.addEventListener('click', () => window.print());
+
+        loadDashboard();
+        setInterval(loadDashboard, 2000);
     </script>
 </body>
 </html>

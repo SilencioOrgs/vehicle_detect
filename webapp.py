@@ -14,6 +14,7 @@ from collections import defaultdict
 
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
+from hotspot import enable_hotspot, disable_hotspot, get_hotspot_status
 
 # ============================================================================
 # Event Management System (5-second debouncing)
@@ -66,34 +67,22 @@ class EventLogger:
         with self.lock:
             now = datetime.now()
             
-            # Case 1: No current event or timer expired → create new event
+            # Start a new event only when there is no active event. While the
+            # timer is still being reset by fresh detections, stay on the same
+            # event id and keep extending the same session.
             if self.current_event is None:
                 self.event_counter += 1
                 self.current_event = DetectionEvent(self.event_counter)
                 self.current_event.detection_time = now
                 self.current_event.status = "pending"
                 self.session_start_time = now
-                event_id = self.event_counter
+                self.current_event.vehicle_count = 1
                 self.last_detection_time = now
-                return event_id
-            
-            # Case 2: Within debounce window → reset timer, don't create new row
-            elapsed = (now - self.session_start_time).total_seconds()
-            if elapsed < self.debounce_seconds:
-                # Still within 5s window - just increment count and reset timer
-                self.current_event.vehicle_count += 1
-                self.last_detection_time = now
-                return self.current_event.event_id  # Return same event_id (no new row)
-            
-            # Case 3: Outside debounce window → finalize current and start new
-            self._finalize_current_event()
-            self.event_counter += 1
-            self.current_event = DetectionEvent(self.event_counter)
-            self.current_event.detection_time = now
-            self.current_event.status = "pending"
-            self.session_start_time = now
+                return self.current_event.event_id
+
+            self.current_event.vehicle_count += 1
             self.last_detection_time = now
-            return self.event_counter
+            return self.current_event.event_id
     
     def on_relay_signal(self, event_id):
         """Call when relay is activated for an event."""
@@ -110,6 +99,8 @@ class EventLogger:
                 self.current_event.status = "completed"
                 self.events.append(self.current_event)
                 self.current_event = None
+                self.last_detection_time = None
+                self.session_start_time = None
     
     def _finalize_current_event(self):
         """Finalize current event and save to history."""
@@ -118,6 +109,9 @@ class EventLogger:
                 self.current_event.relay_off_time = datetime.now()
             self.current_event.status = "completed"
             self.events.append(self.current_event)
+            self.current_event = None
+            self.last_detection_time = None
+            self.session_start_time = None
     
     def get_all_events(self):
         """Return all completed events as dictionaries."""
@@ -134,8 +128,8 @@ class EventLogger:
     def check_timeout(self):
         """Check if current event should be finalized (helper for main loop)."""
         with self.lock:
-            if self.current_event and self.session_start_time:
-                elapsed = (datetime.now() - self.session_start_time).total_seconds()
+            if self.current_event and self.last_detection_time:
+                elapsed = (datetime.now() - self.last_detection_time).total_seconds()
                 if elapsed >= self.debounce_seconds:
                     return True
         return False
@@ -177,11 +171,14 @@ def start_detection():
         app_state['running'] = True
         app_state['detection_enabled'] = True
     
-    # TODO: Enable WiFi hotspot (RPi-specific)
+    hotspot_ok = enable_hotspot()
+    hotspot = get_hotspot_status()
     
     return jsonify({
         'status': 'started',
-        'message': 'Detection started. Hotspot enabled if on RPi.'
+        'message': 'Detection started. Hotspot enabled if on RPi.',
+        'hotspot_enabled': hotspot_ok,
+        'hotspot': hotspot,
     }), 200
 
 
@@ -195,11 +192,14 @@ def stop_detection():
     # Finalize any pending event
     event_logger.on_relay_timeout()
     
-    # TODO: Disable WiFi hotspot (RPi-specific)
+    hotspot_ok = disable_hotspot()
+    hotspot = get_hotspot_status()
     
     return jsonify({
         'status': 'stopped',
-        'message': 'Detection stopped. Hotspot disabled if on RPi.'
+        'message': 'Detection stopped. Hotspot disabled if on RPi.',
+        'hotspot_disabled': hotspot_ok,
+        'hotspot': hotspot,
     }), 200
 
 
@@ -226,6 +226,7 @@ def get_status():
     
     return jsonify({
         **status,
+        'hotspot': get_hotspot_status(),
         'current_event': current_event,
         'timestamp': datetime.now().isoformat()
     }), 200
